@@ -288,7 +288,7 @@ export function PatternsDashboard({ data }: PatternsDashboardProps) {
 
       return (
         <div 
-          className="h-20 w-40 cursor-pointer" 
+          className="h-12 w-40 cursor-pointer" 
           onClick={() => setSelectedVisualization(entry.visualization)}
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -379,5 +379,3 @@ export function PatternsDashboard({ data }: PatternsDashboardProps) {
     </div>
   );
 }
-
-export { PatternsDashboard }
