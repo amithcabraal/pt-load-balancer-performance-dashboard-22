@@ -362,3 +362,5 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
     </div>
   );
 }
+
+export { PerformanceDashboard }
