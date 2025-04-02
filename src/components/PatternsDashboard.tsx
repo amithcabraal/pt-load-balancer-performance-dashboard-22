@@ -37,8 +37,8 @@ function TokenModal({ token, onClose }: TokenModalProps) {
   , [sortedEnumerations]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-[90vw] w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Token Details
@@ -94,7 +94,7 @@ function TokenModal({ token, onClose }: TokenModalProps) {
               )}
             </h3>
             {sortedEnumerations.length > 0 && (
-              <div className="overflow-x-auto">
+              <div>
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
@@ -109,7 +109,7 @@ function TokenModal({ token, onClose }: TokenModalProps) {
                       
                       return (
                         <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{value}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900 dark:text-white break-all">{value}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{count.toLocaleString()}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{percentage}%</td>
                         </tr>
