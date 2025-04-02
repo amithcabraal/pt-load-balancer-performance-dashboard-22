@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ScatterChart,
   Scatter,
@@ -10,10 +10,11 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell
+  Cell,
+  ReferenceLine
 } from 'recharts';
-import { PerformanceMetricsEntry } from '../types';
 import { Search, ArrowUpDown } from 'lucide-react';
+import { useThresholdStore } from '../store/thresholds';
 
 type SortField = 'base_url' | 'request_verb' | 'avg_rt' | 'P50' | 'P95' | 'P100' | 'requests';
 type SortDirection = 'asc' | 'desc';
@@ -57,6 +58,7 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
   const [filterEndpoint, setFilterEndpoint] = useState('');
   const [filterMethod, setFilterMethod] = useState('');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('P100');
+  const { thresholds, setThreshold, removeThreshold } = useThresholdStore();
 
   const uniqueMethods = useMemo(() => {
     return Array.from(new Set(data.map(entry => entry.request_verb))).sort();
@@ -119,6 +121,17 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
     </th>
   );
 
+  const handleThresholdChange = (endpoint: string, method: string, value: string) => {
+    const key = `${method}|${endpoint}`;
+    const numValue = parseFloat(value);
+    
+    if (!isNaN(numValue) && numValue > 0) {
+      setThreshold(key, numValue);
+    } else {
+      removeThreshold(key);
+    }
+  };
+
   return (
     <div className="w-full space-y-8 p-6">
       {/* Filters */}
@@ -171,37 +184,54 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
               <SortableHeader field="P95" label="P95 (ms)" />
               <SortableHeader field="P100" label="P100 (ms)" />
               <SortableHeader field="requests" label="Requests" />
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Threshold (ms)
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {sortedAndFilteredData.map((entry, idx) => (
-              <tr 
-                key={idx} 
-                className={`${entry.P95 > 1000 ? 'bg-red-50 dark:bg-red-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700`}
-              >
-                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-md">
-                  {entry.base_url.split('/').slice(3).join('/')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {entry.request_verb}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-                  {Math.round(entry.avg_rt)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-                  {Math.round(entry.P50)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-                  {Math.round(entry.P95)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-                  {Math.round(entry.max_rt)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-                  {entry.requests.toLocaleString()}
-                </td>
-              </tr>
-            ))}
+            {sortedAndFilteredData.map((entry, idx) => {
+              const thresholdKey = `${entry.request_verb}|${entry.base_url}`;
+              const threshold = thresholds[thresholdKey]?.value;
+              
+              return (
+                <tr 
+                  key={idx} 
+                  className={`${entry.P95 > 1000 ? 'bg-red-50 dark:bg-red-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700`}
+                >
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-md">
+                    {entry.base_url.split('/').slice(3).join('/')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {entry.request_verb}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                    {Math.round(entry.avg_rt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                    {Math.round(entry.P50)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                    {Math.round(entry.P95)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                    {Math.round(entry.max_rt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
+                    {entry.requests.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <input
+                      type="number"
+                      value={threshold || ''}
+                      onChange={(e) => handleThresholdChange(entry.base_url, entry.request_verb, e.target.value)}
+                      placeholder="Set threshold..."
+                      className="w-24 p-1 border border-gray-300 dark:border-gray-600 rounded text-right"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -283,75 +313,93 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredGraphData.map((entry, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 truncate">
-                {entry.request_verb} {entry.base_url.split('/').slice(3).join('/')}
-              </h3>
-              <div className="h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={[
-                    { name: 'P25', value: entry.P25, position: 25 },
-                    { name: 'P50', value: entry.P50, position: 50 },
-                    { name: 'P60', value: entry.P60, position: 60 },
-                    { name: 'P75', value: entry.P75, position: 75 },
-                    { name: 'P90', value: entry.P90, position: 90 },
-                    { name: 'P95', value: entry.P95, position: 95 },
-                    { name: 'P100', value: entry.max_rt, position: 100 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="position" 
-                      type="number"
-                      domain={[0, 100]}
-                      ticks={[25, 50, 60, 75, 90, 95, 100]}
-                      tickFormatter={(value) => `P${value}`}
-                      tick={{ fontSize: 10 }}
-                      stroke="#9CA3AF"
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 10 }}
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={(value) => Math.round(value).toString()}
-                      label={{ 
-                        value: 'Response Time (ms)', 
-                        angle: -90, 
-                        position: 'insideLeft',
-                        style: { fontSize: '10px', fill: '#9CA3AF' }
-                      }}
-                      stroke="#9CA3AF"
-                    />
-                    <Tooltip
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid #ccc',
-                        borderRadius: '8px'
-                      }}
-                      content={({ payload }) => {
-                        if (!payload?.length) return null;
-                        const point = payload[0].payload;
-                        return (
-                          <div className="bg-white dark:bg-gray-800 p-2 border rounded shadow text-xs">
-                            <p className="text-gray-900 dark:text-white">{point.name}: {Math.round(point.value)}ms</p>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke={getColorByP95(entry.P95)}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+          {filteredGraphData.map((entry, index) => {
+            const thresholdKey = `${entry.request_verb}|${entry.base_url}`;
+            const threshold = thresholds[thresholdKey]?.value;
+            
+            return (
+              <div key={index} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 truncate">
+                  {entry.request_verb} {entry.base_url.split('/').slice(3).join('/')}
+                </h3>
+                <div className="h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[
+                      { name: 'P25', value: entry.P25, position: 25 },
+                      { name: 'P50', value: entry.P50, position: 50 },
+                      { name: 'P60', value: entry.P60, position: 60 },
+                      { name: 'P75', value: entry.P75, position: 75 },
+                      { name: 'P90', value: entry.P90, position: 90 },
+                      { name: 'P95', value: entry.P95, position: 95 },
+                      { name: 'P100', value: entry.max_rt, position: 100 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis 
+                        dataKey="position" 
+                        type="number"
+                        domain={[0, 100]}
+                        ticks={[25, 50, 60, 75, 90, 95, 100]}
+                        tickFormatter={(value) => `P${value}`}
+                        tick={{ fontSize: 10 }}
+                        stroke="#9CA3AF"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10 }}
+                        domain={['dataMin', 'dataMax']}
+                        tickFormatter={(value) => Math.round(value).toString()}
+                        label={{ 
+                          value: 'Response Time (ms)', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { fontSize: '10px', fill: '#9CA3AF' }
+                        }}
+                        stroke="#9CA3AF"
+                      />
+                      {threshold && (
+                        <ReferenceLine
+                          y={threshold}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                          label={{
+                            value: `Threshold: ${threshold}ms`,
+                            position: 'right',
+                            fill: '#ef4444',
+                            fontSize: 10
+                          }}
+                        />
+                      )}
+                      <Tooltip
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          border: '1px solid #ccc',
+                          borderRadius: '8px'
+                        }}
+                        content={({ payload }) => {
+                          if (!payload?.length) return null;
+                          const point = payload[0].payload;
+                          return (
+                            <div className="bg-white dark:bg-gray-800 p-2 border rounded shadow text-xs">
+                              <p className="text-gray-900 dark:text-white">{point.name}: {Math.round(point.value)}ms</p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke={getColorByP95(entry.P95)}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-right">
+                  Requests: {entry.requests.toLocaleString()}
+                </div>
               </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-right">
-                Requests: {entry.requests.toLocaleString()}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {!showAllGraphs && (
           <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
@@ -362,5 +410,3 @@ export function PerformanceDashboard({ data }: { data: PerformanceMetricsEntry[]
     </div>
   );
 }
-
-export { PerformanceDashboard }
